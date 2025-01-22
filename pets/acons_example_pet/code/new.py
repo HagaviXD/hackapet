@@ -37,9 +37,10 @@ splash.append(cat_sprite)
 fireball_bitmap = displayio.OnDiskBitmap("C:/Users/User/hackapet/pets/acons_example_pet/code/fireball.bmp")
 
 fireballs = []
+lanes = [10, round((display.width - tile_width)/2), display.width - 10 - tile_width]
 
-def spawn_fireball():
-    x_position = random.randint(0, display.width - fireball_bitmap.width)
+def spawn_fireball(clear_lanes = [0, 1, 2]):
+    x_position = lanes[random.choice(clear_lanes)]
     fireball = displayio.TileGrid(
         fireball_bitmap,
         pixel_shader=fireball_bitmap.pixel_shader,
@@ -48,21 +49,21 @@ def spawn_fireball():
         tile_width=fireball_bitmap.width,
         tile_height=fireball_bitmap.height,
         x=x_position,
-        y=-32
+        y= -tile_height -32
     )
     fireballs.append(fireball)
     splash.append(fireball)
 
-# Function to check for collisions
 def check_collision(sprite1, sprite2):
     return (
-        sprite1.x < sprite2.x + 32 and
-        sprite1.x + 32 > sprite2.x and
-        sprite1.y < sprite2.y + 32 and
-        sprite1.y + 32 > sprite2.y
+    sprite1.x < sprite2.x + 32 and
+    sprite1.x + 32 > sprite2.x and
+    sprite1.y < sprite2.y + 32 and
+    sprite1.y + 32 > sprite2.y
     )
 
 death = displayio.OnDiskBitmap("C:/Users/User/hackapet/pets/acons_example_pet/code/restart.bmp")
+
 
 def display_game_over():
     global death_hi
@@ -82,9 +83,14 @@ def display_game_over():
         splash.remove(i)
     fireballs.clear()
 
-frame = 0
 speed = 4 
+current_position_IL = 1 #in lanes
+
+range_min_y = -25
+min_dist = 35
+two_in_range = False
 game_over = False
+
 
 while True:
 
@@ -99,28 +105,46 @@ while True:
                 fireballs.clear()
                 splash.remove(death_hi)
                 game_over = False
-
+       
 
     keys = pygame.key.get_pressed()
 
-    if game_over == False:
-        if keys[pygame.K_LEFT]:
-            cat_sprite.x -= speed
-        if keys[pygame.K_RIGHT]:
-            cat_sprite.x += speed
-        if random.random() < 0.05:  # spawn rate
-            spawn_fireball()
+    if keys[pygame.K_LEFT] and current_position_IL > 0:
+        current_position_IL -= 1
+        cat_sprite.x = lanes[current_position_IL] 
+    if keys[pygame.K_RIGHT] and current_position_IL < len(lanes) - 1: 
+        current_position_IL += 1
+        cat_sprite.x = lanes[current_position_IL] 
 
+    if cat_sprite.x >= display.width - 32:
+        cat_sprite.x = display.width - 32
+    if cat_sprite.x <= 0 :
+        cat_sprite.x = 0 
+
+    clear_lanes = [0,1,2]
+    in_range_counter = 0    
     for fireball in fireballs:
+        if fireball.y <= min_dist:
+            clear_lanes.remove(lanes.index(fireball.x))
+        if fireball.y <= range_min_y:
+            in_range_counter +=1
         fireball.y += 5 
         if fireball.y > display.height:
             splash.remove(fireball)
             fireballs.remove(fireball)
-        elif check_collision(cat_sprite, fireball):
+        if check_collision(cat_sprite, fireball):
             game_over = True
             display_game_over()
+    if in_range_counter >= 2:
+        two_in_range = True
+    else: 
+        two_in_range = False
 
-    cat_sprite[0] = frame
-    frame = (frame + 1) % (cat_sheet.width // tile_width)
+    
+    
 
-    time.sleep(0.1)
+    if random.random() < 0.05 and not two_in_range: # spawn rate
+        spawn_fireball(clear_lanes)
+
+    time.sleep(0.075)
+        
